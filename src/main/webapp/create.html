@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数字人讲解创作</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: background .3s, color .3s; }
+        :root {
+            --bg: #f5f7fa;
+            --text: #333;
+            --nav: #409eff;
+            --card: #fff;
+            --border: #ddd;
+        }
+        .dark {
+            --bg: #121212;
+            --text: #eee;
+            --nav: #222;
+            --card: #1e1e1e;
+            --border: #444;
+        }
+        body { background: var(--bg); font-family: "微软雅黑"; color: var(--text); }
+        nav { background: var(--nav); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        nav a { color: white; margin: 0 15px; text-decoration: none; }
+        #themeBtn { background: transparent; border: 1px solid white; color: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+        .container { width: 800px; margin: 40px auto; background: var(--card); padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-bottom: 30px; }
+        .item { margin: 20px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 14px; background: var(--card); color: var(--text); }
+        textarea { height: 160px; resize: none; }
+        .word-count { text-align: right; font-size: 12px; color: #999; margin-top: 5px; }
+        .btn { padding: 10px 24px; border: none; border-radius: 5px; color: white; cursor: pointer; margin-right: 10px; transition: .3s; }
+        .btn-green { background: #67c23a; }
+        .btn-blue { background: #409eff; }
+        .btn:disabled { background: #999 !important; cursor: not-allowed; }
+        .video-box { margin-top: 30px; text-align: center; }
+        video { width: 600px; border-radius: 6px; border: 1px solid var(--border); }
+        .template { margin: 10px 0; }
+        .template button { padding: 5px 10px; margin-right: 5px; }
+        .history { margin-top:20px; }
+        .history-item { padding:8px; background:#eee; border-radius:4px; margin:5px 0; cursor:pointer; }
+        .dark .history-item { background:#333; }
+    </style>
+</head>
+<body>
+<nav>
+    <span>数字人智能讲解员</span>
+    <div>
+        <a href="index.html">首页</a>
+        <a href="create.html">创作</a>
+        <a href="works.html">我的作品</a>
+        <button id="themeBtn" onclick="toggleTheme()">深色模式</button>
+    </div>
+</nav>
+<div class="container">
+    <h2>数字人讲解创作</h2>
+
+    <div class="item">
+        <label>选择主题</label>
+        <select id="theme">
+            <option value="历史">历史</option>
+            <option value="景点">景点</option>
+            <option value="产品">产品</option>
+        </select>
+    </div>
+
+    <div class="item">
+        <label>选择数字人形象（男/女讲解员）</label>
+        <select id="avatar">
+            <option value="female">👩 女讲解员</option>
+            <option value="male">👨 男讲解员</option>
+        </select>
+    </div>
+
+    <div class="item">
+        <label>快速文案模板</label>
+        <div class="template">
+            <button onclick="fillTemplate('故宫是明清皇家宫殿，建筑宏伟，文化深厚。')">故宫</button>
+            <button onclick="fillTemplate('长城是世界奇迹，绵延万里，历史悠久。')">长城</button>
+            <button onclick="fillTemplate('这款产品性能强劲，外观精美，性价比高。')">产品介绍</button>
+        </div>
+    </div>
+
+    <div class="item">
+        <label>输入讲解文案</label>
+        <textarea id="content" oninput="updateCount()" placeholder="请输入讲解内容"></textarea>
+        <div class="word-count">已输入：<span id="count">0</span> / 500字</div>
+    </div>
+
+    <button class="btn btn-green" onclick="generate()" id="genBtn">生成讲解视频</button>
+    <button class="btn btn-blue" onclick="save()">保存作品</button>
+
+    <div class="video-box">
+        <video id="videoPlayer" controls></video>
+    </div>
+
+    <div class="history">
+        <h4>最近生成</h4>
+        <div id="historyList"></div>
+    </div>
+</div>
+<script>
+    let videoUrl = "";
+    let currentAvatar = "female";
+    const avatarVideo = {
+        female: "https://www.w3school.com.cn/i/movie.mp4",
+        male: "https://www.w3school.com.cn/i/movie.mp4"
+    };
+
+    // 容错读取
+    let works = [];
+    try {
+        const stored = localStorage.getItem("works");
+        works = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(works)) works = [];
+    } catch (e) {
+        works = [];
+        localStorage.removeItem("works");
+    }
+
+    // 深色模式
+    function toggleTheme() {
+        document.body.classList.toggle("dark");
+        const btn = document.getElementById("themeBtn");
+        btn.innerText = document.body.classList.contains("dark") ? "浅色模式" : "深色模式";
+    }
+
+    // 字数统计
+    function updateCount() {
+        let len = document.getElementById("content").value.length;
+        document.getElementById("count").innerText = len;
+    }
+
+    // 填充模板
+    function fillTemplate(text) {
+        document.getElementById("content").value = text;
+        updateCount();
+    }
+
+    // 生成
+    function generate() {
+        let content = document.getElementById("content").value.trim();
+        let btn = document.getElementById("genBtn");
+        if (!content) return alert("请输入讲解文案！");
+        btn.disabled = true; btn.innerText = "生成中...";
+        setTimeout(() => {
+            currentAvatar = document.getElementById("avatar").value;
+            videoUrl = avatarVideo[currentAvatar];
+            document.getElementById("videoPlayer").src = videoUrl;
+            alert("生成成功！使用：" + (currentAvatar === "female" ? "女讲解员" : "男讲解员"));
+            addHistory(videoUrl);
+            btn.disabled = false; btn.innerText = "生成讲解视频";
+        }, 800);
+    }
+
+    // 生成历史
+    function addHistory(url) {
+        const list = document.getElementById("historyList");
+        const div = document.createElement("div");
+        div.className = "history-item";
+        div.innerText = url.slice(0,50)+"...";
+        div.onclick = ()=>{videoUrl=url;document.getElementById("videoPlayer").src=url;};
+        list.prepend(div);
+    }
+
+    // 保存
+    function save() {
+        let theme = document.getElementById("theme").value;
+        let content = document.getElementById("content").value.trim();
+        let avatar = currentAvatar === "female" ? "女讲解员" : "男讲解员";
+        if (!videoUrl) return alert("请先生成视频！");
+        if (!content) return alert("请填写讲解内容！");
+        let work = {theme,avatar,content,videoUrl,time:new Date().toLocaleString(),star:false};
+        works.unshift(work);
+        localStorage.setItem("works", JSON.stringify(works));
+        alert("保存成功！");
+    }
+</script>
+</body>
+</html>
